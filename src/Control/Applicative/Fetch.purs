@@ -57,7 +57,7 @@ runFetch (Fetch ks f) = f <$> resource ks
 -- |
 -- | Instances must satisfy the following laws in addition to the `Ord` laws:
 -- |
--- | - Key preservation: every key in the input must appear in the output.
+-- | - Key preservation: `(true <$ _) = map (\m -> all (Map.member <@> m) ks) (resource ks)`
 class Ord k <= Resource k r f | k r -> f where
   resource :: Set k -> f (Map k r)
 
