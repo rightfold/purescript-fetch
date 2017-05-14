@@ -17,6 +17,8 @@ import Data.Foldable (foldr)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromJust)
+import Data.Newtype (class Newtype)
+import Data.Profunctor (class Profunctor)
 import Data.Set (Set)
 import Data.Set as Set
 import Partial.Unsafe (unsafePartial)
@@ -37,6 +39,9 @@ instance applyFetch :: (Ord k) => Apply (Fetch k r) where
 
 instance applicativeFetch :: (Ord k) => Applicative (Fetch k r) where
   pure = Fetch Set.empty <<< const
+
+instance profunctorFetch :: Profunctor (Fetch k) where
+  dimap l r (Fetch ks f) = Fetch ks (r <<< f <<< map l)
 
 -- | A computation that fetches data for some key.
 fetch :: ∀ k r. Ord k => k -> Fetch k r r
@@ -60,6 +65,8 @@ class Ord k <= Resource k r f | k r -> f where
 
 -- | Cache fetched data indefinitely.
 newtype Memoize r = Memoize r
+
+derive instance newtypeMemoize :: Newtype (Memoize r) _
 
 instance resourceMemoize :: (Monad f, Resource k r f) =>
   Resource k (Memoize r) (StateT (Map k r) f) where
