@@ -6,8 +6,14 @@ module Control.Applicative.Fetch
 
   , class Resource
   , resource
+
+  , Memoize(..)
   ) where
 
+import Control.Monad.State.Class as State
+import Control.Monad.State.Trans (StateT)
+import Control.Monad.Trans.Class (lift)
+import Data.Foldable (foldr)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromJust)
@@ -49,3 +55,17 @@ runFetch (Fetch ks f) = f <$> resource ks
 -- | - Key preservation: every key in the input must appear in the output.
 class Ord k <= Resource k r f | k r -> f where
   resource :: Set k -> f (Map k r)
+
+--------------------------------------------------------------------------------
+
+-- | Cache fetched data indefinitely.
+newtype Memoize r = Memoize r
+
+instance resourceMemoize :: (Monad f, Resource k r f) =>
+  Resource k (Memoize r) (StateT (Map k r) f) where
+  resource ks = do
+    m <- State.get
+    let ks' = foldr Set.delete ks (Map.keys m)
+    r <- Map.union <@> m <$> lift (resource ks')
+    State.put r
+    pure $ map Memoize r
