@@ -6,7 +6,7 @@
   <hr>
 </div>
 
-- [The Guide][guide] explains the basics with an example.
+- [The guide][guide] explains the basics with an example.
 - API documentation can be found [on Pursuit][pursuit].
 
 [guide]: GUIDE.md
