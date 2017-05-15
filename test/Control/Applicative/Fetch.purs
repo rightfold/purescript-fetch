@@ -2,11 +2,13 @@ module Test.Control.Applicative.Fetch
   ( spec
   ) where
 
-import Control.Applicative.Fetch (Fetch, class Resource, fetch, runFetch)
+import Control.Applicative.Fetch (class Resource, Fetch, Memoize, fetch, runFetch)
+import Control.Monad.State.Trans (evalStateT)
 import Control.Monad.Writer.Trans (WriterT, runWriterT)
 import Control.Monad.Writer.Class as Writer
 import Data.Foldable (foldl)
 import Data.Map as Map
+import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (fst, snd)
@@ -22,6 +24,7 @@ spec = describe "Control.Applicative.Fetch" do
   voidSpec
   trivialSpec
   batchSpec
+  memoizeSpec
 
 --------------------------------------------------------------------------------
 
@@ -87,3 +90,37 @@ batchSpec = it "Batch" do
     (/\) <$> fetch (BatchKey 1) <*> fetch (BatchKey 2)
   fst result `shouldEqual` (BatchResource unit /\ BatchResource unit)
   snd result `shouldEqual` Set.fromFoldable [BatchKey 1, BatchKey 2]
+
+--------------------------------------------------------------------------------
+
+newtype MemoizeKey = MemoizeKey Int
+newtype MemoizeResource = MemoizeResource Int
+
+derive newtype instance eqMemoizeKey :: Eq MemoizeKey
+derive newtype instance ordMemoizeKey :: Ord MemoizeKey
+instance showMemoizeKey :: Show MemoizeKey where
+  show (MemoizeKey k) = "(MemoizeKey " <> show k <> ")"
+
+derive newtype instance eqMemoizeResource :: Eq MemoizeResource
+instance showMemoizeResource :: Show MemoizeResource where
+  show (MemoizeResource k) = "(MemoizeResource " <> show k <> ")"
+
+instance resourceMemoize :: Monad f =>
+  Resource MemoizeKey MemoizeResource (WriterT (Set MemoizeKey) f) where
+  resource ks = do
+    Writer.tell ks
+    pure $ foldl (\m k -> Map.insert k (go k) m) Map.empty ks
+    where go (MemoizeKey k) = MemoizeResource (k * 2)
+
+memoizeSpec :: ∀ r. Spec r Unit
+memoizeSpec = it "Memoize" do
+  result <- runWriterT <<< (evalStateT <@> Map.empty) $ do
+    a <- runFetch $ (/\) <$> fetch' (MemoizeKey 1) <*> fetch' (MemoizeKey 2)
+    b <- runFetch $ (/\) <$> fetch' (MemoizeKey 2) <*> fetch' (MemoizeKey 3)
+    pure $ a /\ b
+  fst result `shouldEqual`
+    ( (MemoizeResource 2 /\ MemoizeResource 4) /\
+      (MemoizeResource 4 /\ MemoizeResource 6) )
+  snd result `shouldEqual`
+    Set.fromFoldable [MemoizeKey 1, MemoizeKey 2, MemoizeKey 3]
+  where fetch' = map (unwrap :: ∀ a. Memoize a -> a) <<< fetch
