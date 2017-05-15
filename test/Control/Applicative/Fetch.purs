@@ -2,13 +2,12 @@ module Test.Control.Applicative.Fetch
   ( spec
   ) where
 
-import Control.Applicative.Fetch (class Resource, Fetch, Memoize, fetch, runFetch)
+import Control.Applicative.Fetch (class Resource, Fetch, Memoize(..), fetch, fetchAla, runFetch)
 import Control.Monad.State.Trans (evalStateT)
 import Control.Monad.Writer.Trans (WriterT, runWriterT)
 import Control.Monad.Writer.Class as Writer
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (fst, snd)
@@ -123,4 +122,4 @@ memoizeSpec = it "Memoize" do
       (MemoizeResource 4 /\ MemoizeResource 6) )
   snd result `shouldEqual`
     Set.fromFoldable [MemoizeKey 1, MemoizeKey 2, MemoizeKey 3]
-  where fetch' = map (unwrap :: ∀ a. Memoize a -> a) <<< fetch
+  where fetch' = fetchAla Memoize

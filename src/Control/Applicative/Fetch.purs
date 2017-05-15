@@ -2,6 +2,7 @@
 module Control.Applicative.Fetch
   ( Fetch
   , fetch
+  , fetchAla
   , runFetch
 
   , class Resource
@@ -17,7 +18,7 @@ import Data.Foldable (foldr)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromJust)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Profunctor (class Profunctor)
 import Data.Set (Set)
 import Data.Set as Set
@@ -46,6 +47,11 @@ instance profunctorFetch :: Profunctor (Fetch k) where
 -- | A computation that fetches data for some key.
 fetch :: ∀ k r. Ord k => k -> Fetch k r r
 fetch k = Fetch (Set.singleton k) (unsafePartial fromJust <<< Map.lookup k)
+
+-- | A computation that fetches data for some key, using some wrapping
+-- | resource.
+fetchAla :: ∀ k r r'. Ord k => Newtype r r' => (r' -> r) -> k -> Fetch k r r'
+fetchAla _ = map unwrap <<< fetch
 
 -- | Perform a fetch computation with some resource in some context.
 runFetch :: ∀ k r f a. Resource k r f => Functor f => Fetch k r a -> f a
