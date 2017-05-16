@@ -3,9 +3,10 @@ module Test.Control.Applicative.Fetch
   ) where
 
 import Control.Applicative.Fetch (class Resource, Fetch, Memoize(..), fetch, fetchAla, runFetch)
-import Control.Monad.State.Trans (evalStateT)
-import Control.Monad.Writer.Trans (WriterT, runWriterT)
+import Control.Monad.RWS.Trans (evalRWST)
+import Control.Monad.Writer.Class (class MonadWriter)
 import Control.Monad.Writer.Class as Writer
+import Control.Monad.Writer.Trans (WriterT, runWriterT)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Set (Set)
@@ -104,8 +105,8 @@ derive newtype instance eqMemoizeResource :: Eq MemoizeResource
 instance showMemoizeResource :: Show MemoizeResource where
   show (MemoizeResource k) = "(MemoizeResource " <> show k <> ")"
 
-instance resourceMemoize :: Monad f =>
-  Resource MemoizeKey MemoizeResource (WriterT (Set MemoizeKey) f) where
+instance resourceMemoize :: (MonadWriter (Set MemoizeKey) f) =>
+  Resource MemoizeKey MemoizeResource f where
   resource ks = do
     Writer.tell ks
     pure $ foldl (\m k -> Map.insert k (go k) m) Map.empty ks
@@ -113,7 +114,7 @@ instance resourceMemoize :: Monad f =>
 
 memoizeSpec :: ∀ r. Spec r Unit
 memoizeSpec = it "Memoize" do
-  result <- runWriterT <<< (evalStateT <@> Map.empty) $ do
+  result <- evalRWST <@> unit <@> Map.empty $ do
     a <- runFetch $ (/\) <$> fetch' (MemoizeKey 1) <*> fetch' (MemoizeKey 2)
     b <- runFetch $ (/\) <$> fetch' (MemoizeKey 2) <*> fetch' (MemoizeKey 3)
     pure $ a /\ b

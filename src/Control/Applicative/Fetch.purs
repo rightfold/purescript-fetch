@@ -11,9 +11,8 @@ module Control.Applicative.Fetch
   , Memoize(..)
   ) where
 
+import Control.Monad.State.Class (class MonadState)
 import Control.Monad.State.Class as State
-import Control.Monad.State.Trans (StateT)
-import Control.Monad.Trans.Class (lift)
 import Data.Foldable (foldr)
 import Data.Map (Map)
 import Data.Map as Map
@@ -74,11 +73,11 @@ newtype Memoize r = Memoize r
 
 derive instance newtypeMemoize :: Newtype (Memoize r) _
 
-instance resourceMemoize :: (Monad f, Resource k r f) =>
-  Resource k (Memoize r) (StateT (Map k r) f) where
+instance resourceMemoize :: (MonadState (Map k r) f, Resource k r f) =>
+  Resource k (Memoize r) f where
   resource ks = do
     m <- State.get
     let ks' = foldr Set.delete ks (Map.keys m)
-    r <- Map.union <@> m <$> lift (resource ks')
+    r <- Map.union <@> m <$> resource ks'
     State.put r
     pure $ map Memoize r
