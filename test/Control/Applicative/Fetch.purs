@@ -19,7 +19,7 @@ import Test.Spec.Assertions (shouldEqual)
 
 --------------------------------------------------------------------------------
 
-spec :: ∀ r. Spec r Unit
+spec :: Spec Unit
 spec = describe "Control.Applicative.Fetch" do
   voidSpec
   trivialSpec
@@ -37,7 +37,7 @@ derive newtype instance ordVoidKey :: Ord VoidKey
 instance resourceVoid :: Applicative f => Resource VoidKey VoidResource f where
   resource = const (pure Map.empty)
 
-voidSpec :: ∀ r. Spec r Unit
+voidSpec :: Spec Unit
 voidSpec = it "Void" do
   result <- runFetch (pure unit :: Fetch VoidKey VoidResource Unit)
   result `shouldEqual` unit
@@ -59,7 +59,7 @@ instance resourceTrivial :: Applicative f =>
   resource = pure <<< foldl (\m k -> Map.insert k (go k) m) Map.empty
     where go (TrivialKey k) = TrivialResource (k * 2)
 
-trivialSpec :: ∀ r. Spec r Unit
+trivialSpec :: Spec Unit
 trivialSpec = it "Trivial" do
   result <- runFetch $ (/\) <$> fetch (TrivialKey 1) <*> fetch (TrivialKey 2)
   result `shouldEqual` (TrivialResource 2 /\ TrivialResource 4)
@@ -84,7 +84,7 @@ instance resourceBatch :: Monad f =>
     Writer.tell ks
     pure $ foldl (\m k -> Map.insert k (BatchResource unit) m) Map.empty ks
 
-batchSpec :: ∀ r. Spec r Unit
+batchSpec :: Spec Unit
 batchSpec = it "Batch" do
   result <- runWriterT <<< runFetch $
     (/\) <$> fetch (BatchKey 1) <*> fetch (BatchKey 2)
@@ -112,7 +112,7 @@ instance resourceMemoize :: (MonadWriter (Set MemoizeKey) f) =>
     pure $ foldl (\m k -> Map.insert k (go k) m) Map.empty ks
     where go (MemoizeKey k) = MemoizeResource (k * 2)
 
-memoizeSpec :: ∀ r. Spec r Unit
+memoizeSpec :: Spec Unit
 memoizeSpec = it "Memoize" do
   result <- evalRWST <@> unit <@> Map.empty $ do
     a <- runFetch $ (/\) <$> fetch' (MemoizeKey 1) <*> fetch' (MemoizeKey 2)
